@@ -1,0 +1,42 @@
+{
+  "title": "Fabric",
+  "slug": "fabric",
+  "description": "An endless pixel-art factory on a dark asteroid field. Mine ore, lay belts, smelt, assemble and launch. Levels, upgrades and the map never end, the factory keeps delivering while you are away, and you can relocate to a fresh site with permanent bonuses.",
+  "description_de": "Eine endlose Pixel-Fabrik auf einem dunklen Asteroidenfeld. Baue Erz ab, lege Förderbänder, schmilz, montiere und starte Raketen. Stufen, Ausbau und Karte enden nie, die Fabrik liefert auch in deiner Abwesenheit, und du kannst mit dauerhaften Boni an einen neuen Standort umsiedeln.",
+  "controls": "Touch: drag to look around, pinch to zoom; with a building chosen, tap or drag to build and use two fingers to move. Mouse and keyboard: wheel zooms, right button or WASD moves, R rotates, X removes, Q picks the building under the pointer, Esc drops the tool, 1 to 5 open the build menus.",
+  "controls_de": "Touch: ziehen zum Umsehen, mit zwei Fingern zoomen; ist ein Gebäude gewählt, tippen oder ziehen zum Bauen und mit zwei Fingern verschieben. Maus und Tastatur: Mausrad zoomt, rechte Taste oder WASD verschiebt, R dreht, X entfernt, Q übernimmt das Gebäude unter dem Zeiger, Esc legt das Werkzeug weg, 1 bis 5 öffnen die Baumenüs.",
+  "category": "strategy",
+  "engine": "TypeScript, Canvas",
+  "version": "1.0",
+  "update_title": "First release",
+  "notes": ["38 buildings and 43 goods", "Endless levels, upgrades and map", "Offline progress and relocation"],
+  "cover_image": "cover.png",
+  "screenshots": ["shots/1.png", "shots/2.png", "shots/3.png"],
+  "score_order": "high",
+  "score_format": "points",
+  "boards": [
+    { "id": "output", "name": "Best output per minute", "score_order": "high", "score_format": "points" }
+  ],
+  "achievements": [
+    { "id": "first-delivery", "name": "First delivery", "description": "Deliver an item to the hub.", "icon": "📦" },
+    { "id": "belt-100", "name": "Belt line", "description": "Have 100 belts standing.", "icon": "➰" },
+    { "id": "sunlight", "name": "Sunlight", "description": "Have 10 solar arrays standing.", "icon": "☀️" },
+    { "id": "upgrade-1", "name": "First upgrade", "description": "Spend cores on an upgrade.", "icon": "🔧" },
+    { "id": "claim-1", "name": "New ground", "description": "Claim a piece of ground.", "icon": "🚩" },
+    { "id": "claim-10", "name": "Surveyor", "description": "Claim 10 pieces of ground.", "icon": "🗺️" },
+    { "id": "plumber", "name": "Meltwater", "description": "Melt ice into water.", "icon": "💧" },
+    { "id": "long-shot", "name": "Long shot", "description": "Throw an item with a mass driver.", "icon": "🎯" },
+    { "id": "megawatt", "name": "Megawatt", "description": "Reach 1000 kW of available power.", "icon": "⚡" },
+    { "id": "critical", "name": "Critical", "description": "Run a fission reactor.", "icon": "☢️" },
+    { "id": "fusion", "name": "Small sun", "description": "Run a fusion reactor.", "icon": "🌟" },
+    { "id": "first-launch", "name": "Lift-off", "description": "Launch a payload.", "icon": "🚀" },
+    { "id": "launch-100", "name": "Launch schedule", "description": "Launch 100 payloads.", "icon": "🛰️" },
+    { "id": "builder-500", "name": "Industrial zone", "description": "Have 500 buildings standing.", "icon": "🏭" },
+    { "id": "output-1k", "name": "Throughput", "description": "Reach an output of 1000 per minute.", "icon": "📈" },
+    { "id": "level-10", "name": "Level 10", "description": "Reach level 10.", "icon": "🔟" },
+    { "id": "level-20", "name": "Level 20", "description": "Reach level 20.", "icon": "🏅" },
+    { "id": "level-30", "name": "Level 30", "description": "Reach level 30.", "icon": "🥈" },
+    { "id": "level-50", "name": "Level 50", "description": "Reach level 50.", "icon": "🥇" },
+    { "id": "relocate", "name": "Moving on", "description": "Relocate to a new site.", "icon": "🧭" }
+  ]
+}
