@@ -9,34 +9,193 @@
   "engine": "TypeScript, Canvas",
   "version": "1.0",
   "update_title": "First release",
-  "notes": ["38 buildings and 43 goods", "Endless levels, upgrades and map", "Offline progress and relocation"],
+  "notes": [
+    "38 buildings and 43 goods",
+    "Endless levels, upgrades and map",
+    "Offline progress and relocation"
+  ],
   "cover_image": "cover.png",
-  "screenshots": ["shots/1.png", "shots/2.png", "shots/3.png"],
+  "screenshots": [
+    "shots/1.png",
+    "shots/2.png",
+    "shots/3.png"
+  ],
   "score_order": "high",
   "score_format": "points",
   "boards": [
-    { "id": "output", "name": "Best output per minute", "score_order": "high", "score_format": "points" }
+    {
+      "id": "",
+      "name": "Highest level",
+      "name_de": "Höchste Stufe"
+    },
+    {
+      "id": "output",
+      "name": "Best output per minute",
+      "name_de": "Bester Ausstoss pro Minute",
+      "score_order": "high",
+      "score_format": "points"
+    }
   ],
   "achievements": [
-    { "id": "first-delivery", "name": "First delivery", "description": "Deliver an item to the hub.", "icon": "📦" },
-    { "id": "belt-100", "name": "Belt line", "description": "Have 100 belts standing.", "icon": "➰" },
-    { "id": "sunlight", "name": "Sunlight", "description": "Have 10 solar arrays standing.", "icon": "☀️" },
-    { "id": "upgrade-1", "name": "First upgrade", "description": "Spend cores on an upgrade.", "icon": "🔧" },
-    { "id": "claim-1", "name": "New ground", "description": "Claim a piece of ground.", "icon": "🚩" },
-    { "id": "claim-10", "name": "Surveyor", "description": "Claim 10 pieces of ground.", "icon": "🗺️" },
-    { "id": "plumber", "name": "Meltwater", "description": "Melt ice into water.", "icon": "💧" },
-    { "id": "long-shot", "name": "Long shot", "description": "Throw an item with a mass driver.", "icon": "🎯" },
-    { "id": "megawatt", "name": "Megawatt", "description": "Reach 1000 kW of available power.", "icon": "⚡" },
-    { "id": "critical", "name": "Critical", "description": "Run a fission reactor.", "icon": "☢️" },
-    { "id": "fusion", "name": "Small sun", "description": "Run a fusion reactor.", "icon": "🌟" },
-    { "id": "first-launch", "name": "Lift-off", "description": "Launch a payload.", "icon": "🚀" },
-    { "id": "launch-100", "name": "Launch schedule", "description": "Launch 100 payloads.", "icon": "🛰️" },
-    { "id": "builder-500", "name": "Industrial zone", "description": "Have 500 buildings standing.", "icon": "🏭" },
-    { "id": "output-1k", "name": "Throughput", "description": "Reach an output of 1000 per minute.", "icon": "📈" },
-    { "id": "level-10", "name": "Level 10", "description": "Reach level 10.", "icon": "🔟" },
-    { "id": "level-20", "name": "Level 20", "description": "Reach level 20.", "icon": "🏅" },
-    { "id": "level-30", "name": "Level 30", "description": "Reach level 30.", "icon": "🥈" },
-    { "id": "level-50", "name": "Level 50", "description": "Reach level 50.", "icon": "🥇" },
-    { "id": "relocate", "name": "Moving on", "description": "Relocate to a new site.", "icon": "🧭" }
+    {
+      "id": "first-delivery",
+      "name": "First delivery",
+      "description": "Deliver an item to the hub.",
+      "icon": "📦",
+      "name_de": "Erste Lieferung",
+      "description_de": "Liefere einen Gegenstand an die Zentrale."
+    },
+    {
+      "id": "belt-100",
+      "name": "Belt line",
+      "description": "Have 100 belts standing.",
+      "icon": "➰",
+      "name_de": "Bandstrasse",
+      "description_de": "Lass 100 Förderbänder stehen."
+    },
+    {
+      "id": "sunlight",
+      "name": "Sunlight",
+      "description": "Have 10 solar arrays standing.",
+      "icon": "☀️",
+      "name_de": "Sonnenlicht",
+      "description_de": "Lass 10 Solarfelder stehen."
+    },
+    {
+      "id": "upgrade-1",
+      "name": "First upgrade",
+      "description": "Spend cores on an upgrade.",
+      "icon": "🔧",
+      "name_de": "Erster Ausbau",
+      "description_de": "Gib Kerne für einen Ausbau aus."
+    },
+    {
+      "id": "claim-1",
+      "name": "New ground",
+      "description": "Claim a piece of ground.",
+      "icon": "🚩",
+      "name_de": "Neues Gelände",
+      "description_de": "Beanspruche ein Stück Gelände."
+    },
+    {
+      "id": "claim-10",
+      "name": "Surveyor",
+      "description": "Claim 10 pieces of ground.",
+      "icon": "🗺️",
+      "name_de": "Vermesser",
+      "description_de": "Beanspruche 10 Stücke Gelände."
+    },
+    {
+      "id": "plumber",
+      "name": "Meltwater",
+      "description": "Melt ice into water.",
+      "icon": "💧",
+      "name_de": "Schmelzwasser",
+      "description_de": "Schmilz Eis zu Wasser."
+    },
+    {
+      "id": "long-shot",
+      "name": "Long shot",
+      "description": "Throw an item with a mass driver.",
+      "icon": "🎯",
+      "name_de": "Weiter Wurf",
+      "description_de": "Wirf einen Gegenstand mit einem Massenwerfer."
+    },
+    {
+      "id": "megawatt",
+      "name": "Megawatt",
+      "description": "Reach 1000 kW of available power.",
+      "icon": "⚡",
+      "name_de": "Megawatt",
+      "description_de": "Erreiche 1000 kW verfügbaren Strom."
+    },
+    {
+      "id": "critical",
+      "name": "Critical",
+      "description": "Run a fission reactor.",
+      "icon": "☢️",
+      "name_de": "Kritisch",
+      "description_de": "Betreibe einen Spaltreaktor."
+    },
+    {
+      "id": "fusion",
+      "name": "Small sun",
+      "description": "Run a fusion reactor.",
+      "icon": "🌟",
+      "name_de": "Kleine Sonne",
+      "description_de": "Betreibe einen Fusionsreaktor."
+    },
+    {
+      "id": "first-launch",
+      "name": "Lift-off",
+      "description": "Launch a payload.",
+      "icon": "🚀",
+      "name_de": "Abheben",
+      "description_de": "Starte eine Nutzlast."
+    },
+    {
+      "id": "launch-100",
+      "name": "Launch schedule",
+      "description": "Launch 100 payloads.",
+      "icon": "🛰️",
+      "name_de": "Startplan",
+      "description_de": "Starte 100 Nutzlasten."
+    },
+    {
+      "id": "builder-500",
+      "name": "Industrial zone",
+      "description": "Have 500 buildings standing.",
+      "icon": "🏭",
+      "name_de": "Industriegebiet",
+      "description_de": "Lass 500 Gebäude stehen."
+    },
+    {
+      "id": "output-1k",
+      "name": "Throughput",
+      "description": "Reach an output of 1000 per minute.",
+      "icon": "📈",
+      "name_de": "Durchsatz",
+      "description_de": "Erreiche einen Ausstoss von 1000 pro Minute."
+    },
+    {
+      "id": "level-10",
+      "name": "Level 10",
+      "description": "Reach level 10.",
+      "icon": "🔟",
+      "name_de": "Stufe 10",
+      "description_de": "Erreiche Stufe 10."
+    },
+    {
+      "id": "level-20",
+      "name": "Level 20",
+      "description": "Reach level 20.",
+      "icon": "🏅",
+      "name_de": "Stufe 20",
+      "description_de": "Erreiche Stufe 20."
+    },
+    {
+      "id": "level-30",
+      "name": "Level 30",
+      "description": "Reach level 30.",
+      "icon": "🥈",
+      "name_de": "Stufe 30",
+      "description_de": "Erreiche Stufe 30."
+    },
+    {
+      "id": "level-50",
+      "name": "Level 50",
+      "description": "Reach level 50.",
+      "icon": "🥇",
+      "name_de": "Stufe 50",
+      "description_de": "Erreiche Stufe 50."
+    },
+    {
+      "id": "relocate",
+      "name": "Moving on",
+      "description": "Relocate to a new site.",
+      "icon": "🧭",
+      "name_de": "Weiterziehen",
+      "description_de": "Siedle an einen neuen Standort um."
+    }
   ]
 }
