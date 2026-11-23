@@ -3,11 +3,12 @@ import "@fontsource/vt323/400.css";
 import "@fontsource/silkscreen/400.css";
 import "@fontsource/silkscreen/700.css";
 import "./style.css";
-import { B, BUILDINGS, DX, DY, GAME_TITLE, I, RECIPES } from "./defs";
+import { B, BUILDINGS, DX, DY, GAME_TITLE, RECIPES } from "./defs";
 import { Lang, detectLang, setLang, t } from "./i18n";
 import { DIRLESS, Renderer, TOOL_ERASE, TOOL_NONE, View } from "./render";
 import { Ent, Game, GameEvent, SaveData } from "./sim";
 import { chunkKey } from "./world";
+import { guide } from "./guide";
 import { AppApi, UI } from "./ui";
 import { setSound, sfx, unlockAudio } from "./audio";
 import { toki } from "./toki";
@@ -22,13 +23,16 @@ class App implements AppApi {
   game!: Game;
   r: Renderer;
   ui: UI;
-  view: View = { tool: TOOL_NONE, dir: 1, hover: null, sel: null };
+  view: View = { tool: TOOL_NONE, dir: 1, hover: null, sel: null, guide: null };
   settings: { sound: boolean; lang: Lang } = { sound: true, lang: detectLang() };
   get atlas() { return this.r.atlas; }
 
   private canvas = document.getElementById("c") as HTMLCanvasElement;
   private pointers = new Map<number, { x: number; y: number }>();
-  private mode: "none" | "tap" | "pan" | "stroke" | "pinch" | "wait" = "none";
+  // aim: a finger is down with a tool chosen, but nothing is built until it moves or lifts, so a second finger
+  // can still turn the gesture into a pinch without leaving a stray building behind.
+  private mode: "none" | "tap" | "pan" | "stroke" | "pinch" | "wait" | "aim" = "none";
+  private aimAt = { x: 0, y: 0 };
   private start = { x: 0, y: 0 };
   private moved = false;
   private rightButton = false;
@@ -222,6 +226,7 @@ class App implements AppApi {
     if (sel) this.game.rotate(sel);
     else this.view.dir = (this.view.dir + 1) & 3;
     sfx("rotate");
+    this.ui.syncDir();
   }
 
   removeSel(): void {
@@ -252,12 +257,22 @@ class App implements AppApi {
     const dir = under && under.kind === "belt" && tool !== B.belt ? under.dir : this.view.dir;
     if (g.place(tool, x, y, dir)) { this.placed(); return true; }
     if (quiet) return false;
-    const there = g.at(x, y);
-    if (there && there.t === tool) return false;
+    const there = g.at(x, y) ?? (BUILDINGS[tool].kind === "pipe" || BUILDINGS[tool].kind === "tank" ? g.pipeAt(x, y) : null);
+    if (there && there.t === tool) {
+      // Tapping a building with its own tool turns it.
+      if (!DIRLESS.has(there.kind)) {
+        g.rotate(there);
+        this.view.dir = there.dir;
+        this.ui.syncDir();
+        sfx("rotate");
+      }
+      return false;
+    }
     const kind = BUILDINGS[tool].kind;
     sfx("error");
     let why = "ui.notHere";
     if (!g.isClaimed(x, y)) why = "ui.notClaimed";
+    else if (there || g.pipeAt(x, y)) why = "ui.occupied";
     else if (kind === "floor") why = "ui.needSpace";
     else if (kind === "drill" && !there && g.isGround(x, y)) why = "ui.needDeposit";
     else if (kind === "well" && !there && g.isGround(x, y)) why = "ui.needVent";
@@ -278,7 +293,12 @@ class App implements AppApi {
     if (v.tool === B.belt) {
       const cur = g.at(x, y);
       this.stroke.pre = !!cur && cur.kind === "belt";
-      if (!cur) this.tryPlace(B.belt, x, y, false);
+      if (!cur) {
+        // Starting next to a machine that outputs nowhere: turn it to feed this belt, and run the belt onwards.
+        const d = g.canPlace(B.belt, x, y) ? g.faceOutputTo(x, y) : -1;
+        if (d >= 0) { v.dir = d; this.ui.syncDir(); }
+        this.tryPlace(B.belt, x, y, false);
+      }
       return;
     }
     this.tryPlace(v.tool, x, y, false);
@@ -355,10 +375,15 @@ class App implements AppApi {
       this.rightButton = ev.pointerType === "mouse" && ev.button !== 0;
       if (this.rightButton) this.mode = "pan";
       else if (this.view.tool !== TOOL_NONE) {
-        this.mode = "stroke";
         const [tx, ty] = this.tileAt(p.x, p.y);
         this.view.hover = { x: tx, y: ty };
-        this.strokeStart(tx, ty);
+        if (ev.pointerType === "mouse") {
+          this.mode = "stroke";
+          this.strokeStart(tx, ty);
+        } else {
+          this.mode = "aim";
+          this.aimAt = { x: tx, y: ty };
+        }
       } else this.mode = "tap";
     });
 
@@ -386,6 +411,19 @@ class App implements AppApi {
       }
       if (Math.hypot(p.x - this.start.x, p.y - this.start.y) > 8) this.moved = true;
       if (this.mode === "tap" && this.moved) this.mode = "pan";
+      if (this.mode === "aim") {
+        const [tx, ty] = this.tileAt(p.x, p.y);
+        const tool = this.view.tool;
+        if (this.moved && (tool === TOOL_ERASE || (tool >= 0 && BUILDINGS[tool].drag))) {
+          // A line tool: build from where the finger went down to where it is now.
+          this.mode = "stroke";
+          this.strokeStart(this.aimAt.x, this.aimAt.y);
+        } else {
+          // A single building follows the finger and is placed where it lifts.
+          this.view.hover = { x: tx, y: ty };
+          return;
+        }
+      }
       if (this.mode === "pan") {
         const dx = (p.x - prev.x) / this.r.z, dy = (p.y - prev.y) / this.r.z;
         this.r.cam.x -= dx;
@@ -414,10 +452,23 @@ class App implements AppApi {
         if (this.mode === "tap") {
           const [wx, wy] = this.r.toWorld(p.x, p.y);
           this.tap(Math.floor(wx), Math.floor(wy));
+        } else if (this.mode === "aim" && this.view.hover) {
+          this.strokeStart(this.view.hover.x, this.view.hover.y);
         } else if (this.mode === "pan" && this.rightButton && !this.moved) {
           // A right click puts the tool away.
           if (this.view.tool !== TOOL_NONE) this.setTool(TOOL_NONE);
           else this.select(null);
+        }
+      }
+      // A tap on a belt with the belt tool, without drawing anything, turns it.
+      const st = this.stroke;
+      if (ev.type === "pointerup" && st && st.pre && st.inDir < 0 && this.view.tool === B.belt) {
+        const b = this.game.at(st.x, st.y);
+        if (b && b.kind === "belt") {
+          this.game.rotate(b);
+          this.view.dir = b.dir;
+          this.ui.syncDir();
+          sfx("rotate");
         }
       }
       if (this.mode !== "pan") this.vel.x = this.vel.y = 0;
@@ -458,11 +509,11 @@ class App implements AppApi {
   // ---------- Loop ----------
   private voiceText(): [string, boolean] {
     const g = this.game;
-    if (g.maxLevel > 1) return [this.ui.voiceFor(g), false];
-    if (!g.counts[B.drill]) return [t("tut.1"), true];
-    if (!g.counts[B.smelter]) return [g.counts[B.belt] < 2 ? t("tut.2") : t("tut.3"), true];
-    if (!g.total[I.iron_ingot]) return [t("tut.4"), true];
-    return [this.ui.voiceFor(g), true];
+    const gd = guide(g);
+    this.view.guide = gd;
+    this.ui.hint(gd ? gd.cat : null, gd ? gd.b : -1);
+    if (!gd) return [this.ui.voiceFor(g), false];
+    return [t(gd.text), true];
   }
 
   private frame(now: number): void {

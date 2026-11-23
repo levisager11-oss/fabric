@@ -31,6 +31,7 @@ export interface Ent {
   last: number; want: number; mark: number;
   next: Ent | null;       // belt: what it runs into. Driver: its catcher.
   rr: number; filter: number;
+  rej: number;            // crafter: an item it was offered but cannot use, -1 if none
   recipe: number; inBuf: number[]; out: number; prog: number; working: boolean; active: boolean;
   fins: number[]; fout: number;
   item: number;           // drill: what it mines
@@ -215,7 +216,7 @@ export class Game {
     return {
       t, kind: def.kind, x, y, dir, size: def.size, idx: -1,
       n: 0, a: -1, ap: 0, af: 0, b: -1, bp: 0, bf: 0, shape: 0, last: -1, want: 0, mark: 0, next: null,
-      rr: 0, filter: -1, recipe: -1, inBuf: [], out: 0, prog: 0, working: false, active: false,
+      rr: 0, filter: -1, rej: -1, recipe: -1, inBuf: [], out: 0, prog: 0, working: false, active: false,
       fins: [], fout: 0, item: -1, mult: 1, nets: [], fuel: 0, net: null, fluid: -1, amt: 0, launchT: -1,
       q: [], res: 0, cool: 0, born: this.time,
     };
@@ -331,12 +332,13 @@ export class Game {
     this.on("change");
   }
 
-  setRecipe(e: Ent, r: number): void {
+  setRecipe(e: Ent, r: number, remember = true): void {
     e.recipe = r;
+    e.rej = -1;
     e.inBuf = r >= 0 ? RECIPES[r].inp.map(() => 0) : [];
     e.fins = r >= 0 ? RECIPES[r].fin.map(() => 0) : [];
     e.out = 0; e.prog = 0; e.working = false; e.fout = 0;
-    if (r >= 0) this.lastRecipe[e.t] = r;
+    if (r >= 0 && remember) this.lastRecipe[e.t] = r;
     this.dirty = true;
   }
 
@@ -509,12 +511,19 @@ export class Game {
         e.out++;
         return true;
       case "crafter": {
-        if (e.recipe < 0 || d === opp(e.dir)) return false;
+        if (d === opp(e.dir)) return false;
+        if (e.recipe < 0 || !RECIPES[e.recipe].inp.some(([i]) => i === item)) {
+          // An idle, empty machine switches to a recipe that uses what it is fed (copper ore into a smelter).
+          const r = this.idle(e) ? this.recipeFor(e.t, item) : -1;
+          if (r < 0) { e.rej = item; return false; }
+          this.setRecipe(e, r, false);
+        }
         const inp = RECIPES[e.recipe].inp;
         for (let i = 0; i < inp.length; i++) {
           if (inp[i][0] === item) {
             if (e.inBuf[i] >= inp[i][1] * 2 + 2) return false;
             e.inBuf[i]++;
+            e.rej = -1;
             return true;
           }
         }
@@ -548,6 +557,41 @@ export class Game {
       default:
         return false;
     }
+  }
+
+  /** A crafter holding nothing and doing nothing. */
+  private idle(e: Ent): boolean {
+    return !e.working && e.out === 0 && e.fout <= 0 && e.inBuf.every((n) => n === 0) && e.fins.every((n) => n <= 0);
+  }
+
+  /** The first unlocked recipe of a machine that takes this item. */
+  recipeFor(t: number, item: number): number {
+    for (const r of RECIPES_BY_MACHINE[t]) if (this.recipeUnlocked(r) && RECIPES[r].inp.some(([i]) => i === item)) return r;
+    return -1;
+  }
+
+  /**
+   * A belt is being started on x,y next to a machine whose output leads nowhere: turn the machine so its
+   * output feeds the new belt. Returns the direction the machine now faces, or -1 if nothing turned.
+   */
+  faceOutputTo(x: number, y: number): number {
+    let found: Ent | null = null, dir = -1;
+    for (let d = 0; d < 4; d++) {
+      const e = this.at(x - DX[d], y - DY[d]);
+      if (!e || !["drill", "scoop", "crafter", "crate", "catcher"].includes(e.kind)) continue;
+      const keep = e.dir;
+      const [cx, cy] = this.outTile(e);
+      if (this.at(cx, cy) || this.pipeAt(cx, cy)) continue; // its output already goes somewhere
+      e.dir = d;
+      const [ox, oy] = this.outTile(e);
+      e.dir = keep;
+      if (ox !== x || oy !== y) continue;
+      if (found && found !== e) return -1; // two candidates: don't guess
+      found = e; dir = d;
+    }
+    if (!found) return -1;
+    if (found.dir !== dir) { found.dir = dir; this.dirty = true; this.on("change"); }
+    return dir;
   }
 
   private pushTo(x: number, y: number, item: number, d: number): boolean {

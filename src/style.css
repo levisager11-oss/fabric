@@ -205,3 +205,7 @@ button:disabled { cursor: default; }
   .tb { min-height: 58px; }
   #voice { display: none; }
 }
+
+/* The walkthrough points at the next button to press. */
+.bb.hint, .tb.hint { color: var(--text); animation: hint .9s steps(2) infinite; }
+@keyframes hint { 0%, 100% { box-shadow: inset 0 0 0 2px var(--yellow); background: var(--panel2); } 50% { box-shadow: inset 0 0 0 2px var(--amber); background: #3d3320; } }
