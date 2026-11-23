@@ -6,7 +6,7 @@ import {
   trackCost, trackValue,
 } from "./defs";
 import { Lang, getLang, t } from "./i18n";
-import { TOOL_ERASE, TOOL_NONE, View } from "./render";
+import { DIRLESS, TOOL_ERASE, TOOL_NONE, View } from "./render";
 import { Away, Ent, Game } from "./sim";
 import { Atlas } from "./sprites";
 import { sfx } from "./audio";
@@ -46,6 +46,13 @@ const ICON = {
   core: pix("..#.. .###. ##### .###. ..#.."),
   beacon: pix("..#.. .#.#. #.#.# ..#.. ..#.. .###."),
 };
+/** The direction new buildings face: up, right, down, left. */
+const DIR_ICON = [
+  pix("...#... ..###.. .#####. ...#... ...#... ...#... ...#..."),
+  pix("....... ....#.. ....##. ####### ....##. ....#.. ......."),
+  pix("...#... ...#... ...#... ...#... .#####. ..###.. ...#..."),
+  pix("....... ..#.... .##.... ####### .##.... ..#.... ......."),
+];
 const CAT_ICON: Record<Cat, number> = { logi: B.belt, mine: B.drill, prod: B.smelter, fluid: B.pipe, power: B.solar };
 
 const $ = (id: string) => document.getElementById(id)!;
@@ -128,6 +135,8 @@ export class UI {
   private voiceUntil = 0;
   private claimKey = 0;
   private shownCores = -1;
+  private hintCat: Cat | null = null;
+  private hintB = -1;
 
   constructor(private app: AppApi) {
     this.injectIcons();
@@ -194,7 +203,7 @@ export class UI {
     const v = this.app.view;
     let h = "";
     for (const c of CATS) h += `<button class="bb${this.cat === c ? " on" : ""}" data-cat="${c}">${bIc(CAT_ICON[c])}<span>${t("cat." + c)}</span></button>`;
-    h += `<button class="bb sm" data-act="rotate" aria-label="${t("ui.rotate")}">${ICON.rotate}<span>${t("ui.rotate")}</span></button>`;
+    h += `<button class="bb sm" data-act="rotate" aria-label="${t("ui.rotate")}">${this.rotateIcon()}<span>${t("ui.rotate")}</span></button>`;
     h += `<button class="bb sm${v.tool === TOOL_ERASE ? " on danger" : ""}" data-act="erase" aria-label="${t("ui.erase")}">${ICON.erase}<span>${t("ui.erase")}</span></button>`;
     this.bar.innerHTML = h;
   }
@@ -214,6 +223,28 @@ export class UI {
     this.tray.hidden = false;
   }
 
+  /** With a building chosen, the rotate button shows the way it will face. */
+  private rotateIcon(): string {
+    const v = this.app.view;
+    return v.tool >= 0 && !DIRLESS.has(BUILDINGS[v.tool].kind) && !v.sel ? DIR_ICON[v.dir] : ICON.rotate;
+  }
+
+  /** Called when the direction for new buildings changes. */
+  syncDir(): void {
+    const b = this.bar.querySelector('[data-act="rotate"]');
+    if (b) b.innerHTML = this.rotateIcon() + `<span>${t("ui.rotate")}</span>`;
+  }
+
+  /** The walkthrough points at the build menu and the building to choose next. */
+  hint(cat: Cat | null, b: number): void {
+    this.hintCat = cat;
+    this.hintB = b;
+    const v = this.app.view;
+    const wantCat = !!cat && this.cat !== cat && v.tool !== b;
+    this.bar.querySelectorAll<HTMLElement>("[data-cat]").forEach((el) => el.classList.toggle("hint", wantCat && el.dataset.cat === cat));
+    this.tray.querySelectorAll<HTMLElement>("[data-b]").forEach((el) => el.classList.toggle("hint", !wantCat && b >= 0 && v.tool !== b && Number(el.dataset.b) === b));
+  }
+
   /** Called when the tool changes. */
   syncTool(): void {
     const v = this.app.view;
@@ -226,6 +257,7 @@ export class UI {
     }
     this.renderBar();
     this.renderTray();
+    this.hint(this.hintCat, this.hintB);
   }
 
   openCat(i: number): void {
@@ -237,6 +269,7 @@ export class UI {
     if (this.cat && this.kind) this.close();
     this.renderBar();
     this.renderTray();
+    this.hint(this.hintCat, this.hintB);
   }
 
   private onBar(ev: Event): void {
@@ -405,14 +438,22 @@ export class UI {
         if (e.working) return g.sat < 0.999 ? t("ui.status.power") : t("ui.status.work");
         const r = RECIPES[e.recipe];
         const full = (r.out && e.out + r.out[1] > Math.max(4, r.out[1] * 2)) || (r.fout && e.fout + r.fout[1] > r.fout[1] * 3);
-        return full ? t("ui.status.full") : t("ui.status.wait");
+        if (full) return r.out && !this.leadsOut(g, e) ? t("ui.status.noOut") : t("ui.status.full");
+        return e.rej >= 0 ? t("ui.status.wrong", { item: itemName(e.rej) }) : t("ui.status.wait");
       }
-      case "drill": case "scoop": case "well": return e.active ? (g.sat < 0.999 ? t("ui.status.power") : t("ui.status.work")) : t("ui.status.full");
+      case "drill": case "scoop": return e.active ? (g.sat < 0.999 ? t("ui.status.power") : t("ui.status.work")) : this.leadsOut(g, e) ? t("ui.status.full") : t("ui.status.noOut");
+      case "well": return e.active ? (g.sat < 0.999 ? t("ui.status.power") : t("ui.status.work")) : t("ui.status.full");
       case "burner": case "turbine": case "fusion": case "reactor": return e.active ? t("ui.status.work") : t("ui.status.fuel");
       case "pad": return e.launchT >= 0 ? t("ui.status.work") : t("ui.status.wait");
       case "driver": return e.next ? t("ui.status.ok") : t("ui.status.link");
       default: return "";
     }
+  }
+
+  /** Is there anything on the tile this building puts its items out to? */
+  private leadsOut(g: Game, e: Ent): boolean {
+    const [x, y] = g.outTile(e);
+    return !!g.at(x, y);
   }
 
   private infoHtml(g: Game, e: Ent): [string, string] {

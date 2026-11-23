@@ -1,6 +1,7 @@
 // Draws the world at art resolution (one canvas pixel per art pixel); CSS scales it up with hard edges.
 import { B, BUILDINGS, DX, DY, PAD_LAUNCH_TIME, RECIPES } from "./defs";
 import { Ent, Game } from "./sim";
+import type { Guide } from "./guide";
 import { Atlas, BELT_FRAMES, FLUID_COLORS, IT, T, buildAtlas, color, drawChunk, makeCanvas, screenOf } from "./sprites";
 import { CH, chunkKey, hash } from "./world";
 
@@ -11,7 +12,13 @@ export interface View {
   dir: number;
   hover: { x: number; y: number } | null; // tile under the pointer
   sel: Ent | null;
+  guide: Guide | null;                    // the walkthrough's markers, during level 1
 }
+
+/** An arrow pointing up, as pixel offsets from its centre. */
+const ARROW: [number, number][] = [[0, -3], [-1, -2], [0, -2], [1, -2], [-2, -1], [-1, -1], [0, -1], [1, -1], [2, -1], [0, 0], [0, 1], [0, 2]];
+/** Kinds that put items out on one side; an arrow shows which. */
+const OUTPUTS = new Set(["drill", "scoop", "crafter", "crate", "catcher", "splitter", "sorter", "driver"]);
 
 interface Particle { x: number; y: number; vx: number; vy: number; life: number; max: number; c: string; g: number; s: number }
 interface Rocket { x: number; y: number; t: number }
@@ -325,6 +332,45 @@ export class Renderer {
       c.globalAlpha = 1;
     }
 
+    // While building, every machine shows where its output goes.
+    if (v.tool >= 0) {
+      for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++) {
+        const cell = g.getCell(cx, cy);
+        if (!cell) continue;
+        for (let k = 0; k < CH * CH; k++) {
+          const e = cell.ents[k];
+          if (!e || !OUTPUTS.has(e.kind) || e.x !== cx * CH + (k & 15) || e.y !== cy * CH + (k >> 4)) continue;
+          this.outArrow(e.x, e.y, e.size, e.dir, camX, camY, "#feae34", animTick);
+        }
+      }
+    } else if (v.sel && OUTPUTS.has(v.sel.kind)) {
+      const e = v.sel;
+      this.outArrow(e.x, e.y, e.size, e.dir, camX, camY, "#fee761", animTick);
+    }
+
+    // The walkthrough: a dotted belt path and bouncing markers.
+    if (v.guide) {
+      const blink = Math.floor(now * 4);
+      v.guide.path.forEach(([x, y, d], i) => {
+        if (((i + blink) & 3) === 3) return;
+        this.chevron(x * T - camX + 8, y * T - camY + 8, d, "#feae34");
+      });
+      for (const [x, y] of v.guide.marks) {
+        const px = x * T - camX, py = y * T - camY, bob = (Math.floor(now * 5) & 1) * 2;
+        c.fillStyle = "#fee761";
+        for (const [ax, ay, sx, sy] of [[px, py, 1, 1], [px + T - 1, py, -1, 1], [px, py + T - 1, 1, -1], [px + T - 1, py + T - 1, -1, -1]]) {
+          c.fillRect(sx > 0 ? ax : ax - 4, ay, 5, 1);
+          c.fillRect(ax, sy > 0 ? ay : ay - 4, 1, 5);
+        }
+        // A downward arrow above the tile.
+        c.fillStyle = "#0b0c14";
+        c.fillRect(px + 4, py - 13 - bob, 8, 9);
+        c.fillStyle = "#fee761";
+        for (let r = 0; r < 4; r++) c.fillRect(px + 5 + r, py - 12 - bob + r, 6 - r * 2, 1);
+        c.fillRect(px + 7, py - 16 - bob, 2, 4);
+      }
+    }
+
     // Selection: four brackets that breathe
     if (v.sel) {
       const e = v.sel, n = e.size * T, o = animTick & 2 ? 2 : 1;
@@ -352,6 +398,7 @@ export class Renderer {
         else c.drawImage(A.build[v.tool], (DIRLESS.has(BUILDINGS[v.tool].kind) ? 0 : v.dir) * n, 0, n, n, px, py, n, n);
         c.globalAlpha = 1;
       }
+      if (v.tool >= 0 && OUTPUTS.has(BUILDINGS[v.tool].kind)) this.outArrow(hx, hy, size, v.dir, camX, camY, ok ? "#63c74d" : "#e43b44", animTick);
       c.fillStyle = ok ? "#63c74d" : "#e43b44";
       if (!ok) { c.globalAlpha = 0.3; c.fillRect(px, py, n, n); c.globalAlpha = 1; }
       c.fillRect(px, py, n, 1); c.fillRect(px, py + n - 1, n, 1); c.fillRect(px, py, 1, n); c.fillRect(px + n - 1, py, 1, n);
@@ -364,6 +411,27 @@ export class Renderer {
       c.globalAlpha = 1;
       this.flash *= Math.pow(0.01, dt);
     }
+  }
+
+  /** A small arrow in direction d, centred on px,py, outlined in ink so it reads on any ground. */
+  private chevron(px: number, py: number, d: number, col: string): void {
+    const c = this.ctx;
+    const pts = ARROW.map(([a, b]) => (d === 0 ? [a, b] : d === 1 ? [-b, a] : d === 2 ? [-a, -b] : [b, -a]));
+    const x0 = Math.round(px), y0 = Math.round(py);
+    c.fillStyle = "#0b0c14";
+    for (const [x, y] of pts) c.fillRect(x0 + x - 1, y0 + y - 1, 3, 3);
+    c.fillStyle = col;
+    for (const [x, y] of pts) c.fillRect(x0 + x, y0 + y, 1, 1);
+  }
+
+  /** The arrow on the edge where a building of this size at x,y facing d puts out its items. */
+  private outArrow(x: number, y: number, size: number, d: number, camX: number, camY: number, col: string, tick: number): void {
+    // The output tile, as Game.outTile has it.
+    const ox = d === 0 ? x : d === 1 ? x + size : d === 2 ? x + size - 1 : x - 1;
+    const oy = d === 0 ? y - 1 : d === 1 ? y : d === 2 ? y + size : y + size - 1;
+    const push = tick & 2 ? 1 : 0;
+    const cx = ox * T + 8 - DX[d] * (8 - push) - camX, cy = oy * T + 8 - DY[d] * (8 - push) - camY;
+    this.chevron(cx, cy, d, col);
   }
 
   /** Light a building throws on the ground around it. */
@@ -416,7 +484,8 @@ export class Renderer {
           c.fillStyle = "#feae34";
           c.fillRect(px + sx - 1, py + sy + IT * sc + 1, Math.round((IT * sc + 2) * e.prog), 1);
         }
-      } else if (tick & 2) { c.fillStyle = "#e43b44"; c.fillRect(px + sx + 3 * sc, py + sy + 2 * sc, 2 * sc, 3 * sc); c.fillRect(px + sx + 3 * sc, py + sy + 6 * sc, 2 * sc, sc); }
+      }
+      if ((!r || (e.rej >= 0 && !e.working)) && tick & 2) { c.fillStyle = "#e43b44"; c.fillRect(px + sx + 3 * sc, py + sy + 2 * sc, 2 * sc, 3 * sc); c.fillRect(px + sx + 3 * sc, py + sy + 6 * sc, 2 * sc, sc); }
       if (e.active && (e.t === B.smelter || e.t === B.kiln || e.t === B.refinery) && Math.random() < 0.06) this.smoke(e.x + 0.72, e.y + 0.05);
     } else if (e.kind === "sorter") {
       if (e.filter >= 0) c.drawImage(A.items, e.filter * IT, 0, IT, IT, px + 4, py + 4, IT, IT);

@@ -51,6 +51,7 @@ Saves live in `localStorage` (`fabric-save`, `fabric-settings`), which Toki's sc
 | `src/defs.ts` | Items, buildings, recipes, levels, upgrades: the content tables. |
 | `src/world.ts` | The generated asteroid field. |
 | `src/sim.ts` | The simulation: belts, machines, pipes, power, levels, saving. No DOM, covered by `tests/`. |
+| `src/guide.ts` | The level 1 walkthrough: the next button to press, map markers and the dotted belt path. |
 | `src/sprites.ts` | The pixel art. |
 | `src/render.ts` | The canvas renderer: lighting, particles, effects. |
 | `src/ui.ts`, `src/style.css` | The HUD. |
